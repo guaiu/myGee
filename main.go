@@ -1,13 +1,23 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"net/http"
 
 	"github.com/guaiu/myGee/web"
 )
 
 func main() {
-	engine := new(web.Engine)
-	log.Fatal(http.ListenAndServe(":9999", engine))
+	r := web.New()
+	r.GET("/", func(w http.ResponseWriter, req *http.Request) {
+		fmt.Fprintf(w, "URL.Path = %q\n", req.URL.Path)
+	})
+
+	r.GET("/hello", func(w http.ResponseWriter, req *http.Request) {
+		for k, v := range req.Header {
+			fmt.Fprintf(w, "Header[%q] = %q\n", k, v)
+		}
+	})
+
+	r.Run(":9999")
 }
