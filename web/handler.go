@@ -3,6 +3,7 @@ package web
 import (
 	"log"
 	"net/http"
+	"strings"
 )
 
 // HandlerFunc defines the request handler used by myGee
@@ -43,7 +44,6 @@ func (group *RouterGroup) Group(prefix string) *RouterGroup {
 
 func (group *RouterGroup) addRoute(method string, comp string, handler HandlerFunc) {
 	pattern := group.prefix + comp
-	// 如果comp == '/'，出现bug
 	log.Printf("Route %4s - %s", method, pattern)
 	group.engine.router.addRoute(method, pattern, handler)
 }
@@ -58,21 +58,10 @@ func (group *RouterGroup) POST(pattern string, handler HandlerFunc) {
 	group.addRoute("POST", pattern, handler)
 }
 
-// 取消engine直接添加路由的方法
-//
-// func (engine *Engine) addRoute(method string, pattern string, handler HandlerFunc) {
-// 	engine.router.addRoute(method, pattern, handler)
-// }
-
-// // GET defines the method to add GET request
-// func (engine Engine) GET(pattern string, handler HandlerFunc) {
-// 	engine.addRoute("GET", pattern, handler)
-// }
-
-// // POST defines the method to add POST request
-// func (engine *Engine) POST(pattern string, handler HandlerFunc) {
-// 	engine.addRoute("POST", pattern, handler)
-// }
+// Use is defined to add middleware to the group
+func (group *RouterGroup) Use(middlewares ...HandlerFunc) {
+	group.middlewares = append(group.middlewares, middlewares...)
+}
 
 // Run defines the method to start a http server
 func (engine *Engine) Run(addr string) (err error) {
@@ -80,6 +69,14 @@ func (engine *Engine) Run(addr string) (err error) {
 }
 
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	var middlewares []HandlerFunc
+	for _, group := range engine.groups {
+		if strings.HasPrefix(req.URL.Path, group.prefix) {
+			middlewares = append(middlewares, group.middlewares...)
+		}
+	}
+
 	c := newContext(w, req)
+	c.handlers = middlewares
 	engine.router.handle(c)
 }
